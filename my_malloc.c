@@ -15,7 +15,7 @@ void add(metadata *curr, metadata *head_sp, metadata *tail_sp)
         return;
     }
 
-    //if curr is ahead of head
+    //curr ahead of head
     if (head_sp && curr < head_sp)
     {
         curr->next = head_sp;
@@ -47,11 +47,12 @@ void add(metadata *curr, metadata *head_sp, metadata *tail_sp)
         {
             tmp->next->prev = curr;
         }
-        else
+
+        //tail
+        if (tail_sp == tmp)
         {
             tail_sp = curr;
         }
-
         //tmp
         tmp->next = curr;
     }
@@ -59,14 +60,14 @@ void add(metadata *curr, metadata *head_sp, metadata *tail_sp)
 
 void remove(metadata *curr, metadata *head_sp, metadata *tail_sp)
 {
-    if (head == curr)
+    if (head_sp == curr)
     {
-        head = curr->next;
+        head_sp = curr->next;
     }
 
-    if (tail == curr)
+    if (tail_sp == curr)
     {
-        tail = curr->prev;
+        tail_sp = curr->prev;
     }
 
     //prev
@@ -94,7 +95,7 @@ metadata *split(metadata *curr, size_t size)
 {
 
     //curr
-    curr->size = curr->size - size - sizeof(metadata);
+    curr->size -= size + sizeof(metadata);
 
     //next
     metadata *next = (void *)curr + sizeof(metadata) + curr->size;
@@ -248,8 +249,15 @@ void my_free(void *ptr, metadata *head_sp, metadata *tail_sp)
     add(curr, head_sp, tail_sp);
     join(curr, head_sp, tail_sp);
 }
-//
-void *ts_malloc_lock(size_t size) {}
+
+//lock
+void *ts_malloc_lock(size_t size)
+{
+    pthread_mutex_lock(&lock);
+    void *ptr = my_malloc(size, sbrk, head, tail);
+    pthread_mutex_unlock(&lock);
+    return ptr;
+}
 void ts_free_lock(void *ptr)
 {
     pthread_mutex_lock(&lock);
@@ -257,8 +265,12 @@ void ts_free_lock(void *ptr)
     pthread_mutex_unlock(&lock);
 }
 
-//
-void *ts_malloc_nolock(size_t size) {}
+//no lock
+void *ts_malloc_nolock(size_t size)
+{
+    void *ptr = my_malloc(size, sbrk_lock, head_tls, tail_tls);
+    return ptr;
+}
 void ts_free_nolock(void *ptr)
 {
     my_free(ptr, head_tls, tail_tls);
