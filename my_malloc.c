@@ -19,13 +19,13 @@ __thread metadata *tail_tls = NULL;
  * free list
  * 
  */
-void add(metadata *curr, metadata *head_sp, metadata *tail_sp)
+void add(metadata *curr, metadata **head_sp, metadata **tail_sp)
 {
     //empty list
-    if (!head_sp)
+    if (!(*head_sp))
     {
-        head_sp = curr;
-        tail_sp = curr;
+        *head_sp = curr;
+        *tail_sp = curr;
         return;
     }
 
