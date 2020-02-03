@@ -2,6 +2,20 @@
 
 /*
  *
+ * init global variable
+ * 
+ */
+
+metadata *head = NULL;
+metadata *tail = NULL;
+pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
+
+//no lock, use thread local storage
+__thread metadata *head_tls = NULL;
+__thread metadata *tail_tls = NULL;
+
+/*
+ *
  * free list
  * 
  */
@@ -221,6 +235,10 @@ void *my_malloc(size_t size, funcptr func, metadata *head_sp, metadata *tail_sp)
     if (!head_sp)
     {
         metadata *new = extend(size, func);
+        if (!new)
+        {
+            return NULL;
+        }
         return new + 1;
     }
 
@@ -230,6 +248,10 @@ void *my_malloc(size_t size, funcptr func, metadata *head_sp, metadata *tail_sp)
     if (!curr)
     {
         metadata *new = extend(size, func);
+        if (!new)
+        {
+            return NULL;
+        }
         return new + 1;
     }
 
@@ -241,8 +263,8 @@ void *my_malloc(size_t size, funcptr func, metadata *head_sp, metadata *tail_sp)
     else
     {
 
-        split(curr, size);
-        return curr + 1;
+        metadata *next = split(curr, size);
+        return next + 1;
     }
 }
 

@@ -18,20 +18,22 @@ void ts_free_nolock(void *ptr);
 typedef struct metadata
 {
     size_t size;
-    struct metadata *prev;
     struct metadata *next;
+    struct metadata *prev;
 
 } metadata;
 
 //function pointer
 typedef void *(*funcptr)(intptr_t);
+
+//global variable
 //lock
-metadata *head = NULL;
-metadata *tail = NULL;
-pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
+extern metadata *head;
+extern metadata *tail;
+extern pthread_mutex_t lock;
 
 //no lock, use thread local storage
-__thread metadata *head_tls = NULL;
-__thread metadata *tail_tls = NULL;
+extern __thread metadata *head_tls;
+extern __thread metadata *tail_tls;
 
 #endif
