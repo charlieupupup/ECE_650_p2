@@ -16,7 +16,7 @@ void add(metadata *curr, metadata *head_sp, metadata *tail_sp)
     }
 
     //curr ahead of head
-    if (head_sp && curr < head_sp)
+    if (head_sp && (unsigned long)curr < (unsigned long)head_sp)
     {
         curr->next = head_sp;
         head_sp->prev = curr;
@@ -25,13 +25,13 @@ void add(metadata *curr, metadata *head_sp, metadata *tail_sp)
     }
 
     //curr after head
-    if (head_sp && curr > head_sp)
+    if (head_sp && (unsigned long)curr >= (unsigned long)head_sp)
     {
         //loop through to find proper place
         metadata *tmp = head_sp;
         while (tmp->next)
         {
-            if (tmp < curr && curr < tmp->next)
+            if ((unsigned long)tmp < (unsigned long)curr && (unsigned long)curr < (unsigned long)tmp->next)
             {
                 break;
             }
@@ -60,6 +60,11 @@ void add(metadata *curr, metadata *head_sp, metadata *tail_sp)
 
 void remove(metadata *curr, metadata *head_sp, metadata *tail_sp)
 {
+    if (!curr)
+    {
+        return;
+    }
+
     if (head_sp == curr)
     {
         head_sp = curr->next;
@@ -216,7 +221,7 @@ void *my_malloc(size_t size, funcptr func, metadata *head_sp, metadata *tail_sp)
     if (!head_sp)
     {
         metadata *new = extend(size, func);
-        return new;
+        return new + 1;
     }
 
     //find block
@@ -225,17 +230,20 @@ void *my_malloc(size_t size, funcptr func, metadata *head_sp, metadata *tail_sp)
     if (!curr)
     {
         metadata *new = extend(size, func);
-        return new;
+        return new + 1;
     }
 
-    if (curr && curr->size <= 2 * (size + sizeof(metadata)))
+    if (curr && curr->size <= size + 40)
     {
         remove(curr, head_sp, tail_sp);
         return curr + 1;
     }
+    else
+    {
 
-    split(curr, size);
-    return curr + 1;
+        split(curr, size);
+        return curr + 1;
+    }
 }
 
 void my_free(void *ptr, metadata *head_sp, metadata *tail_sp)
@@ -245,7 +253,7 @@ void my_free(void *ptr, metadata *head_sp, metadata *tail_sp)
         return;
     }
 
-    metadata *curr = ptr - sizeof(metadata);
+    metadata *curr = (metadata *)ptr - 1;
     add(curr, head_sp, tail_sp);
     join(curr, head_sp, tail_sp);
 }
