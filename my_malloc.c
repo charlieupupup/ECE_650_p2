@@ -19,7 +19,7 @@ __thread metadata *tail_tls = NULL;
  * free list
  * 
  */
-void add(metadata *curr, metadata **head_sp, metadata **tail_sp)
+void add_list(metadata *curr, metadata **head_sp, metadata **tail_sp)
 {
     //empty list
     if (!(*head_sp))
@@ -30,19 +30,19 @@ void add(metadata *curr, metadata **head_sp, metadata **tail_sp)
     }
 
     //curr ahead of head
-    if (head_sp && (unsigned long)curr < (unsigned long)head_sp)
+    if (*head_sp && (unsigned long)curr < (unsigned long)(*head_sp))
     {
-        curr->next = head_sp;
-        head_sp->prev = curr;
-        head_sp = curr;
+        curr->next = *head_sp;
+        (*head_sp)->prev = curr;
+        *head_sp = curr;
         return;
     }
 
     //curr after head
-    if (head_sp && (unsigned long)curr >= (unsigned long)head_sp)
+    if (*head_sp && (unsigned long)curr >= (unsigned long)(*head_sp))
     {
         //loop through to find proper place
-        metadata *tmp = head_sp;
+        metadata *tmp = *head_sp;
         while (tmp->next)
         {
             if ((unsigned long)tmp < (unsigned long)curr && (unsigned long)curr < (unsigned long)tmp->next)
@@ -63,30 +63,30 @@ void add(metadata *curr, metadata **head_sp, metadata **tail_sp)
         }
 
         //tail
-        if (tail_sp == tmp)
+        if (*tail_sp == tmp)
         {
-            tail_sp = curr;
+            *tail_sp = curr;
         }
         //tmp
         tmp->next = curr;
     }
 }
 
-void remove(metadata *curr, metadata *head_sp, metadata *tail_sp)
+void remove_list(metadata *curr, metadata **head_sp, metadata **tail_sp)
 {
     if (!curr)
     {
         return;
     }
 
-    if (head_sp == curr)
+    if (*head_sp == curr)
     {
-        head_sp = curr->next;
+        *head_sp = curr->next;
     }
 
-    if (tail_sp == curr)
+    if (*tail_sp == curr)
     {
-        tail_sp = curr->prev;
+        *tail_sp = curr->prev;
     }
 
     //prev
@@ -125,7 +125,7 @@ metadata *split(metadata *curr, size_t size)
     return next;
 }
 
-void join(metadata *curr, metadata *head_sp, metadata *tail_sp)
+void join(metadata *curr, metadata **head_sp, metadata **tail_sp)
 {
     if (curr)
     {
@@ -134,9 +134,9 @@ void join(metadata *curr, metadata *head_sp, metadata *tail_sp)
         {
             curr->size += curr->next->size + sizeof(metadata);
 
-            if (tail_sp == curr->next)
+            if (*tail_sp == curr->next)
             {
-                tail_sp = curr;
+                *tail_sp = curr;
             }
             if (curr->next->next)
             {
@@ -149,9 +149,9 @@ void join(metadata *curr, metadata *head_sp, metadata *tail_sp)
         {
             curr->prev->size += curr->size + sizeof(metadata);
 
-            if (tail_sp == curr)
+            if (*tail_sp == curr)
             {
-                tail_sp = curr->prev;
+                *tail_sp = curr->prev;
             }
 
             if (curr->next)
@@ -164,7 +164,7 @@ void join(metadata *curr, metadata *head_sp, metadata *tail_sp)
     }
 }
 
-void *extend(size_t size, funcptr func)
+metadata *extend(size_t size, funcptr func)
 {
     //corner case
     if (size <= 0)
@@ -204,19 +204,19 @@ void *sbrk_lock(intptr_t size)
  * 
  */
 
-metadata *bf(size_t size, metadata *head_sp)
+metadata *bf(size_t size, metadata **head_sp)
 {
     metadata *best = NULL;
-    metadata *curr = head_sp;
+    metadata *curr = *head_sp;
 
     while (curr)
     {
-        if (curr->size == size + sizeof(metadata))
+        if (curr->size == size)
         {
             return curr;
         }
 
-        if (curr->size > size + sizeof(metadata))
+        if (curr->size >= size)
         {
             if (!best || best->size > curr->size)
             {
@@ -230,15 +230,11 @@ metadata *bf(size_t size, metadata *head_sp)
     return best;
 }
 
-void *my_malloc(size_t size, funcptr func, metadata *head_sp, metadata *tail_sp)
+void *my_malloc(size_t size, funcptr func, metadata **head_sp, metadata **tail_sp)
 {
-    if (!head_sp)
+    if (!(*head_sp))
     {
         metadata *new = extend(size, func);
-        if (!new)
-        {
-            return NULL;
-        }
         return new + 1;
     }
 
@@ -248,10 +244,6 @@ void *my_malloc(size_t size, funcptr func, metadata *head_sp, metadata *tail_sp)
     if (!curr)
     {
         metadata *new = extend(size, func);
-        if (!new)
-        {
-            return NULL;
-        }
         return new + 1;
     }
 
@@ -268,7 +260,7 @@ void *my_malloc(size_t size, funcptr func, metadata *head_sp, metadata *tail_sp)
     }
 }
 
-void my_free(void *ptr, metadata *head_sp, metadata *tail_sp)
+void my_free(void *ptr, metadata **head_sp, metadata **tail_sp)
 {
     if (!ptr)
     {
@@ -284,24 +276,24 @@ void my_free(void *ptr, metadata *head_sp, metadata *tail_sp)
 void *ts_malloc_lock(size_t size)
 {
     pthread_mutex_lock(&lock);
-    void *ptr = my_malloc(size, sbrk, head, tail);
+    void *ptr = my_malloc(size, sbrk, &head, &tail);
     pthread_mutex_unlock(&lock);
     return ptr;
 }
 void ts_free_lock(void *ptr)
 {
     pthread_mutex_lock(&lock);
-    my_free(ptr, head, tail);
+    my_free(ptr, &head, &tail);
     pthread_mutex_unlock(&lock);
 }
 
 //no lock
 void *ts_malloc_nolock(size_t size)
 {
-    void *ptr = my_malloc(size, sbrk_lock, head_tls, tail_tls);
+    void *ptr = my_malloc(size, sbrk_lock, &head_tls, &tail_tls);
     return ptr;
 }
 void ts_free_nolock(void *ptr)
 {
-    my_free(ptr, head_tls, tail_tls);
+    my_free(ptr, &head_tls, &tail_tls);
 }
